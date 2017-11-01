@@ -1,3 +1,4 @@
+import os
 import time
 from collections import deque
 
@@ -18,6 +19,8 @@ DIM = 15
 EPOCH_MAX = 100
 DEVICE = "/cpu:0"
 
+HOME_DIR = os.path.dirname(os.path.realpath(__file__))
+
 
 def clip(x):
     return np.clip(x, 1.0, 5.0)
@@ -28,7 +31,7 @@ def make_scalar_summary(name, val):
 
 
 def get_data():
-    df = dataio.read_process("/tmp/movielens/ml-1m/ratings.dat", sep="::")
+    df = dataio.read_process("{}/data/ml-20m/ratings.csv".format(HOME_DIR), sep=",")
     rows = len(df)
     df = df.iloc[np.random.permutation(rows)].reset_index(drop=True)
     split_index = int(rows * 0.9)
