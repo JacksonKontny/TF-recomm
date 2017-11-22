@@ -13,8 +13,9 @@ import ops
 np.random.seed(13575)
 
 BATCH_SIZE = 1000
-USER_NUM = 6040
-ITEM_NUM = 3952
+TRAIN_RATIO = 0.9
+# USER_NUM = 6040
+# ITEM_NUM = 3952
 DIM = 15
 EPOCH_MAX = 100
 DEVICE = "/cpu:0"
@@ -31,18 +32,24 @@ def make_scalar_summary(name, val):
 
 
 def get_data():
-    df = dataio.read_process("{}/data/ml-20m/ratings.csv".format(HOME_DIR), sep=",")
+    print('Reading in data')
+    df = dataio.read_process("{}/data/ml-20m/ratings_10000.csv".format(HOME_DIR), sep=",")
     rows = len(df)
+    user_num = len(df["user"].unique())
+    item_num = df["item"].max() + 1
+    print('Number of users: {}, Number of items: {}'.format(user_num, item_num))
+    print('Shuffling data')
     df = df.iloc[np.random.permutation(rows)].reset_index(drop=True)
-    split_index = int(rows * 0.9)
+    split_index = int(rows * TRAIN_RATIO)
     df_train = df[0:split_index]
     df_test = df[split_index:].reset_index(drop=True)
-    return df_train, df_test
+    return df_train, df_test, user_num, item_num
 
 
-def svd(train, test):
+def svd(train, test, user_num, item_num):
     samples_per_batch = len(train) // BATCH_SIZE
 
+    print('Getting train batches')
     iter_train = dataio.ShuffleIterator([train["user"],
                                          train["item"],
                                          train["rate"]],
@@ -57,7 +64,7 @@ def svd(train, test):
     item_batch = tf.placeholder(tf.int32, shape=[None], name="id_item")
     rate_batch = tf.placeholder(tf.float32, shape=[None])
 
-    infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=USER_NUM, item_num=ITEM_NUM, dim=DIM,
+    infer, regularizer = ops.inference_svd(user_batch, item_batch, user_num=user_num, item_num=item_num, dim=DIM,
                                            device=DEVICE)
     global_step = tf.contrib.framework.get_or_create_global_step()
     _, train_op = ops.optimization(infer, regularizer, rate_batch, learning_rate=0.001, reg=0.05, device=DEVICE)
@@ -96,6 +103,6 @@ def svd(train, test):
 
 
 if __name__ == '__main__':
-    df_train, df_test = get_data()
-    svd(df_train, df_test)
+    df_train, df_test, user_num, item_num = get_data()
+    svd(df_train, df_test, user_num, item_num)
     print("Done!")
